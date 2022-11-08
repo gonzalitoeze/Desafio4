@@ -6,7 +6,9 @@ const fs = require('fs');
 const { Router } = require('express')
 const routes = Router();
 const Contenedor = require('../productos/Contenedor');
-const productos = new Contenedor ('../productos/productos.json')
+const productos = new Contenedor(
+    path.resolve(__dirname, '../productos/productos.json')
+) 
 
 routes.get('/productos', async (req, res) => {
     let productos = await fs.promises.readFile(
@@ -52,21 +54,63 @@ routes.post('/productos', async(req, res) => {
 //     res.send(Producto.producto);
 // })
 
-routes.put('/productos/:id', (req, res) => {
+routes.get('/productos/:id', async (req, res) => {
     let { title, price, thumbnail } = req.body;
-    let index = Producto.productos.findIndex(
-        producto => producto.id === Number(req.params.id)
-    );
-    if (index >= 0) {
-        Producto.productos[index] = { title, price, thumbnail };
-        Producto.productos[index].id = Number(req.params.id);
-        res.send(Producto.productos[index]);
-    } else {
-        res.status(404).send({
-            error: 'Producto no encontrado'
-        })
-    }
+    let id = req.params.id;
+    try {
+        //1 - LEER ARCHIVO
+        let datosArchivo = await fs.promises.readFile(
+            path.resolve(__dirname, '../productos/productos.json'), 'utf-8'
+        );
+        let products = JSON.parse(datosArchivo);
+
+        //2- BUSCAR EL ITEM POR ID
+        const productoBuscado = products.find(
+            (product) => product.id === parseInt(id)
+        );
+
+        //4 - SI EXISTE
+        if (productoBuscado) {
+            const index = products.indexOf(productoBuscado);
+
+            //LO EDITO CON LOS VALORES DEL BODY
+            products[index]["title"] = title;
+            products[index]["price"] = price;
+            products[index]["thumbnail"] = thumbnail;
+
+             //5- GUARDO TODO NUEVAMENTE AL ARCHIVO
+            await fs.promises.writeFile(
+                path.resolve(__dirname, "../productos/productos.json"),
+                JSON.stringify(products, null, 2)
+            );
+            res.send("Producto actualizado");
+        } else {
+            // 3 - NO EXISTE...
+            console.log(`Id ${id} no existe`);
+            res.send("Producto no existe");
+        }
+
+    } catch (error) {
+        console.log(error);
+        res.send("Ocurrio un error");
+    };
 });
+
+// routes.put('/productos/:id', (req, res) => {
+//     let { title, price, thumbnail } = req.body;
+//     let index = Producto.productos.findIndex(
+//         producto => producto.id === Number(req.params.id)
+//     );
+//     if (index >= 0) {
+//         Producto.productos[index] = { title, price, thumbnail };
+//         Producto.productos[index].id = Number(req.params.id);
+//         res.send(Producto.productos[index]);
+//     } else {
+//         res.status(404).send({
+//             error: 'Producto no encontrado'
+//         })
+//     }
+// });
 
 routes.delete('/productos/:id', async (req, res) => {
     const id = parseInt(req.params.id);
